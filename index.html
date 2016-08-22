@@ -1,0 +1,209 @@
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>Soundcloud-mini</title>
+    <style>
+    body {
+        font-family: monospace;
+    }
+    input {
+        width: 40em;
+    }
+    pre>div>div {
+        display: flex;
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+    }
+    pre>div>div>div {
+        width: 4em;
+        display: inline-block;
+    }
+    pre>div>div>a {
+        min-width: 15em;
+        display: inline-block;
+    }
+    pre>div {
+        border: 1px solid gray;
+        padding: 0.5em;
+        display: flex;
+    }
+    img {
+        width: 30px;
+        border: 1px solid black;
+        margin-right: 1em;
+    }
+    audio {
+        width: 90%;
+    }
+    #stop {
+        font-size: x-large;
+        color: red;
+    }
+    </style>
+  </head>
+  <body>
+    <h1>Soundcloud-mini</h1>
+    <pre class="desc">
+What? This is a mini soundcloud API just for getting URLs for tracks to play
+(and playlists).
+
+It has the same API as the official soundcloud API but it only supports
+`SC.initialize` and `SC.get`
+    </pre>
+    <pre id="stop" style="display: none;">
+PLEASE GET YOUR OWN CLIENT ID
+
+You can get one here:
+<a href="http://soundcloud.com/you/apps/new">http://soundcloud.com/you/apps/new</a>
+    </pre>
+    <pre id="form">
+soundcloud url: <input id="url" type="text" placeholder="playlist or song webpage url" />
+
+Example URLs for you to copy and paste above:
+  song url:     <a href="https://soundcloud.com/djapsara/apsara-shin-nishimura-just-in-time">https://soundcloud.com/djapsara/apsara-shin-nishimura-just-in-time</a>
+  playlist url: <a href="https://soundcloud.com/v-e-r-t-e/sets/snow-in-july">https://soundcloud.com/v-e-r-t-e/sets/snow-in-july</a>
+    </pre>
+    <pre id="state">
+
+    </pre>
+    <pre id="tracks">
+
+    </pre>
+    <pre id="audio">
+
+    </pre>
+    <script src="dist/soundcloud-mini.js"></script>
+    <script>
+function main() {
+  var $ = document.querySelector.bind(document);
+  if (window.location.hostname !== "greggman.github.io" &&
+      window.location.hostname !== "localhost") {
+    $("#stop").style.display = "block";
+    $("#form").style.display = "none";
+    return;
+  }
+
+  var s = {
+    // GET YOUR OWN CLIENT ID!!!
+    soundCloudClientId: "cc20a45c12f8cdcba23d5b5a6e75613b", // GET YOUR OWN CLIENT ID!!!
+    // GET YOUR OWN CLIENT ID!!!
+  };
+
+
+  SC.initialize({
+    client_id: s.soundCloudClientId,
+  });
+
+  function isStreamable(track) {
+    return track.streamable && track.stream_url;
+  }
+
+  function setSoundSuccessState(success, msg) {
+    $("#state").textContent = success ? "success" : msg;
+  }
+
+  function makeLink(label, value, link, img_url) {
+    value = value || "*unknown*";
+    var div = document.createElement("div");
+    var elem = document.createElement("div");
+    elem.appendChild(document.createTextNode(label));
+    div.appendChild(elem);
+    var img = new Image();
+    img.src = img_url;
+    div.appendChild(img);
+    var a = document.createElement("a");
+    a.textContent = value;
+    a.href = link;
+    div.appendChild(a);
+    return div;
+  }
+
+  function makeTrackInfo(track) {
+    track = track || {};
+    track.user = track.user || {};
+    var div = document.createElement("div");
+    div.appendChild(makeLink("user:", track.user.username, track.user.permalink_url, track.user.avatar_url));
+    div.appendChild(makeLink("track:", track.title, track.permalink_url, track.artwork_url));
+    return div;
+  }
+
+  function showTracks(tracks) {
+    $("#tracks").innerHTML = "";
+    tracks.forEach(function(track) {
+      $("#tracks").appendChild(makeTrackInfo(track));
+    });
+  }
+
+  $("#url").addEventListener('change', function(e) {
+    var url = e.target.value.trim();
+
+    SC.get("/resolve", { url: url }, function(result, err) {
+      if (err) {
+        console.error("bad url:", url, err);
+        setSoundSuccessState(false, "not a valid soundcloud url? " + (err.message ? err.message : ""));
+        return;
+      }
+console.log(result);
+      var tracks = result.kind === "playlist" ? result.tracks : [result];
+      s.trackNdx = 0;
+      s.playlist = [];
+      if (Array.isArray(tracks)) {
+        s.playlist = tracks.filter(isStreamable);
+      }
+
+      if (!s.playlist.length) {
+        console.error("no streamable tracks");
+        setSoundSuccessState(false, "not streamable according to soundcloud");
+      } else {
+        showTracks(s.playlist);
+        playNextTrack();
+      }
+    });
+
+  });
+
+  function handleAudioError() {
+    setSoundSuccessState(false, "could not play: " + s.audio.src);
+    playNextTrack();
+  }
+
+  function handleCanPlay() {
+    s.audio.play();
+  }
+
+  function playNextTrack() {
+    if (!s.playlist.length) {
+      return;
+    }
+
+    s.currentTrackNdx = s.trackNdx % s.playlist.length;
+    s.trackNdx = (s.trackNdx + 1) % s.playlist.length;
+    var track = s.playlist[s.currentTrackNdx];
+    var src = track.stream_url + '?client_id=' + s.soundCloudClientId;
+
+    if (s.audio) {
+      s.audio.removeEventListener('error', handleAudioError);
+      s.audio.removeEventListener('canplay', handleCanPlay);
+      s.audio.removeEventListener('ended', playNextTrack);
+      s.audio.pause();
+      s.audio.parentElement.removeChild(s.audio);
+      s.audio = undefined;
+    }
+
+    s.audio = new Audio();
+    s.audio.addEventListener('error', handleAudioError);
+    s.audio.addEventListener('canplay', handleCanPlay);
+    s.audio.addEventListener('ended', playNextTrack);
+    s.audio.controls = true;
+    s.audio.src = src;
+    s.audio.load();
+    $("#audio").appendChild(s.audio);
+  }
+
+}
+
+main();
+    </script>
+  </body>
+</html>

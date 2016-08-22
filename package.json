@@ -1,0 +1,30 @@
+{
+  "name": "soundcloud-mini",
+  "version": "0.0.1",
+  "description": "A small soundcloud API library",
+  "main": "dist/soundcloud-mini.js",
+  "dependencies": {},
+  "devDependencies": {
+    "rollup": "^0.34.10"
+  },
+  "scripts": {
+    "build": "rollup -f umd -n SC -o dist/soundcloud-mini.js src/soundcloud-mini.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/greggman/soundcloud-mini.git"
+  },
+  "files": [
+    "dist/soundcloud-mini.js"
+  ],
+  "keywords": [
+    "soundcloud"
+  ],
+  "author": "Gregg Tavares",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/greggman/soundcloud-mini/issues"
+  },
+  "homepage": "https://github.com/greggman/soundcloud-mini#readme"
+}
